@@ -13,6 +13,9 @@ public:
 	Cartridge(const std::string& file);
 	~Cartridge();
 
+	uint8_t cartRead(uint16_t addr);
+	void cartWrite(uint16_t addr, uint8_t data);
+
 	void loadRom(std::string location);
 
 	//misc information about ROM header

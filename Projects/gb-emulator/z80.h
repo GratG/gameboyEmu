@@ -122,9 +122,29 @@ private:
     void CCF();
     void SCF(); //set carry flag
     void RLC(uint8_t& reg);
-    void RLC16(uint16_t& reg);
+    void RLCMem(uint16_t addr);
     void RL(uint8_t& reg);
+    void RLMem(uint16_t addr);
     void RRC(uint8_t& reg);
+    void RRCMem(uint16_t addr);
     void RR(uint8_t& reg);
+    void RRMem(uint16_t addr);
+    void SLA(uint8_t& reg);
+    void SLAMem(uint16_t addr);
+    void SRA(uint8_t& reg);
+    void SRAMem(uint16_t addr);
+    void SRL(uint8_t& reg);
+    void SRLMem(uint16_t addr);
 
+    //test bit at location bit
+    void testBit(uint8_t reg, int bit);
+    void testBitMem(uint16_t addr, int bit);
+
+    //set bit at location bit
+    void SET(uint8_t& reg, int bit);
+    void SETMem(uint16_t addr, int bit);
+
+    //reset bit at location bit
+    void RES(uint8_t& reg, int bit);
+    void RESMem(uint16_t addr, int bit);
 };

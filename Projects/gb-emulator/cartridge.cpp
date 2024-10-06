@@ -13,6 +13,17 @@ Cartridge::~Cartridge()
 {
 }
 
+uint8_t Cartridge::cartRead(uint16_t addr)
+{
+	//ROM only read for now (need memory map options depending on cart type)
+	return romData[addr]; 
+}
+
+void Cartridge::cartWrite(uint16_t addr, uint8_t data)
+{
+	//can't write to ROM
+}
+
 void Cartridge::loadRom(std::string location)
 {
 	

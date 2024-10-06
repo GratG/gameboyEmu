@@ -1,5 +1,6 @@
 #include "z80.h"
 #include "bus.h"
+#include <iostream>
 
 
 z80::z80() {
@@ -21,7 +22,7 @@ void z80::clock()
         pc++;
         cycles = executeOP(opcode);
     }
-
+    //std::cout << +cycles << std::endl;
     clock_cycles--;
     cycles--;
 }
@@ -53,7 +54,7 @@ void z80::setFlag(FLAGSz80 f, bool v) {
 
 
 uint8_t z80::read(uint16_t a) {
-    return bus->read(a, false);
+    return bus->busRead(a, false);
 
 }
 
@@ -66,7 +67,7 @@ uint16_t z80::read16()
 }
 
 void z80::write(uint16_t a, uint8_t d) {
-    bus->write(a, d);
+    bus->busWrite(a, d);
 }
 
 uint8_t z80::resetBit(uint8_t b, uint8_t x)
@@ -470,10 +471,25 @@ void z80::RLC(uint8_t& reg)
         registerAF.lo = setBit(registerAF.lo, Z);
 }
 
-void z80::RLC16(uint16_t& reg)
+void z80::RLCMem(uint16_t addr)
 {
+    uint8_t reg = read(addr);
 
+    bool isSet = checkBit(reg, 7);
+
+    registerAF.lo = 0;
+    reg <<= 1;
+
+    if (isSet) {
+        registerAF.lo = setBit(registerAF.lo, C);
+        reg = setBit(reg, 0);
+    }
+
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+    write(addr, reg);
 }
+
 
 void z80::RL(uint8_t& reg)
 {
@@ -493,6 +509,49 @@ void z80::RL(uint8_t& reg)
         registerAF.lo = setBit(registerAF.lo, Z);
 }
 
+void z80::RLMem(uint16_t addr)
+{
+    uint8_t reg = read(addr);
+    bool isCarrySet = getFlag(C);
+    bool isSet = checkBit(reg, 7);
+
+    registerAF.lo = 0;
+    reg <<= 1;
+
+    if (isSet)
+        registerAF.lo = setBit(registerAF.lo, C);
+
+    if (isCarrySet)
+        reg = setBit(reg, 0);
+
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+
+    write(addr, reg);
+}
+
+void z80::RLCMem(uint16_t addr) {
+    uint8_t reg = read(addr);
+
+    bool isCarrySet = getFlag(C);
+    bool isSet = checkBit(reg, 7);
+
+    registerAF.lo = 0;
+    reg <<= 1;
+
+    if (isSet)
+        registerAF.lo = setBit(registerAF.lo, C);
+
+    if (isCarrySet)
+        reg = setBit(reg, 0);
+
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+
+    write(addr, reg);
+
+}
+
 void z80::RRC(uint8_t& reg)
 {
     bool isSet = checkBit(reg, 0);
@@ -507,6 +566,25 @@ void z80::RRC(uint8_t& reg)
 
     if (reg == 0)
         registerAF.lo = setBit(registerAF.lo, Z);
+}
+
+void z80::RRCMem(uint16_t addr)
+{
+    uint8_t reg = read(addr);
+    bool isSet = checkBit(reg, 0);
+
+    registerAF.lo = 0;
+    reg >>= 1;
+
+    if (isSet) {
+        registerAF.lo = setBit(registerAF.lo, C);
+        reg = setBit(reg, 7);
+    }
+
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+    
+    write(addr, reg);
 }
 
 void z80::RR(uint8_t& reg)
@@ -528,6 +606,185 @@ void z80::RR(uint8_t& reg)
         registerAF.lo = setBit(registerAF.lo, Z);
 }
 
+void z80::RRMem(uint16_t addr)
+{
+    uint8_t reg = read(addr);
+    bool isCarrySet = checkBit(registerAF.lo, C);
+    bool isSet = checkBit(reg, 0);
+
+    registerAF.lo = 0;
+    reg >>= 1;
+
+    if (isSet)
+        registerAF.lo = setBit(registerAF.lo, C);
+
+    if (isCarrySet)
+        reg = setBit(reg, 7);
+
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+    write(addr, reg);
+}
+
+void z80::SLA(uint8_t& reg)
+{
+    bool isSet = checkBit(reg, 7);
+
+    reg <<= 1;
+
+    registerAF.lo = 0;
+
+    if (isSet)
+        registerAF.lo = setBit(registerAF.lo, C);
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+}
+
+void z80::SLAMem(uint16_t addr)
+{
+    uint8_t reg = read(addr);
+    bool isSet = checkBit(reg, 7);
+
+    reg <<= 1;
+
+    registerAF.lo = 0;
+
+    if (isSet)
+        registerAF.lo = setBit(registerAF.lo, C);
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+    
+    write(addr, reg);
+}
+
+void z80::SRA(uint8_t& reg)
+{
+    bool isSet = checkBit(reg, 0);
+    bool isHSet = checkBit(reg, 7);
+
+    reg >>= 1;
+
+    registerAF.lo = 0;
+
+    if (isHSet)
+        reg = setBit(reg, 7);
+    if (isSet)
+        registerAF.lo = setBit(registerAF.lo, C);
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+}
+
+void z80::SRAMem(uint16_t addr)
+{
+    uint8_t reg = read(addr);
+    bool isSet = checkBit(reg, 0);
+    bool isHSet = checkBit(reg, 7);
+
+    reg >>= 1;
+
+    registerAF.lo = 0;
+
+    if (isHSet)
+        reg = setBit(reg, 7);
+    if (isSet)
+        registerAF.lo = setBit(registerAF.lo, C);
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+
+    write(addr, reg);
+}
+
+void z80::SRL(uint8_t& reg)
+{
+
+    bool isLSet = checkBit(reg, 0);
+
+    registerAF.lo = 0;
+
+    reg >>= 1;
+
+    if (isLSet)
+        registerAF.lo = setBit(registerAF.lo, C);
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+}
+
+void z80::SRLMem(uint16_t addr)
+{
+    uint8_t reg = read(addr);
+
+    bool isLSet = checkBit(reg, 0);
+
+    registerAF.lo = 0;
+
+    reg >>= 1;
+
+    if (isLSet)
+        registerAF.lo = setBit(registerAF.lo, C);
+    if (reg == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+
+    write(addr, reg);
+}
+
+void z80::testBit(uint8_t reg, int bit)
+{
+
+    bool isSet = checkBit(reg, bit);
+
+    if (isSet)
+        registerAF.lo = resetBit(registerAF.lo, Z);
+    else
+        registerAF.lo = setBit(registerAF.lo, Z);
+    
+    registerAF.lo = setBit(registerAF.lo, H);
+    registerAF.hi = resetBit(registerAF.lo, N);
+}
+
+void z80::testBitMem(uint16_t addr, int bit)
+{
+    uint8_t reg = read(addr);
+    bool isSet = checkBit(reg, bit);
+
+    if (isSet)
+        registerAF.lo = resetBit(registerAF.lo, Z);
+    else
+        registerAF.lo = setBit(registerAF.lo, Z);
+
+    registerAF.lo = setBit(registerAF.lo, H);
+    registerAF.hi = resetBit(registerAF.lo, N);
+
+  
+}
+
+void z80::SET(uint8_t& reg, int bit)
+{
+
+    reg = setBit(reg, bit);
+
+}
+
+void z80::SETMem(uint16_t addr, int bit)
+{
+    uint8_t reg = read(addr);
+    reg = setBit(reg, bit);
+    write(addr, reg);
+}
+
+void z80::RES(uint8_t& reg, int bit)
+{
+
+    reg = resetBit(reg, bit);
+
+}
+
+void z80::RESMem(uint16_t addr, int bit)
+{
+    uint8_t reg = read(addr);
+    reg = resetBit(reg, bit);
+    write(addr, reg);
+}
+
 // opcodes from http://www.codeslinger.co.uk/pages/projects/gameboy/files/GB.pdf
 // switch statement for all opcodes...
 // returns the cycle number which decrements in clock()
@@ -535,6 +792,7 @@ void z80::RR(uint8_t& reg)
 // each opcode uses instructions in different static
 int z80::executeOP(uint8_t opcode)
 {
+    std::cout << std::hex << +opcode << std::endl;
     switch (opcode) {
         //all 8bit load opcodes:
     case 0x06:
@@ -1241,6 +1499,7 @@ int z80::executeOP(uint8_t opcode)
         return executeExOP(exOpcode);
     }
     default:
+        std::cout << "Unknown opcode" << std::endl;
         return 0;
     }//end of switch
 }
@@ -1294,7 +1553,153 @@ int z80::executeExOP(uint8_t opcode) {
         RLC(registerHL.lo);
         return 8;
     case 0x06:
-        //RLC(registerHL.reg);
+        RLCMem(registerHL.reg);
+        return 16;
+    case 0x17:
+        RL(registerAF.hi);
         return 8;
+    case 0x10:
+        RL(registerBC.hi);
+        return 8;
+    case 0x11:
+        RL(registerBC.lo);
+        return 8;
+    case 0x12:
+        RL(registerDE.hi);
+        return 8;
+    case 0x13:
+        RL(registerDE.lo);
+        return 8;
+    case 0x14:
+        RL(registerHL.hi);
+        return 8;
+    case 0x15:
+        RL(registerHL.lo);
+        return 8;
+    case 0x16:
+        RLMem(registerHL.reg);
+        return 16;
+    case 0x0F:
+        RRC(registerAF.hi);
+        return 8;
+    case 0x08:
+        RRC(registerBC.hi);
+        return 8;
+    case 0x09:
+        RRC(registerBC.lo);
+        return 8;
+    case 0x0A:
+        RRC(registerDE.hi);
+        return 8;
+    case 0x0B:
+        RRC(registerDE.lo);
+        return 8;
+    case 0x0C:
+        RRC(registerHL.hi);
+        return 8;
+    case 0x0D:
+        RRC(registerHL.lo);
+        return 8;
+    case 0x0E:
+        RRCMem(registerHL.reg);
+        return 16;
+    case 0x1F:
+        RR(registerAF.hi);
+        return 8;
+    case 0x18:
+        RR(registerBC.hi);
+        return 8;
+    case 0x19:
+        RR(registerBC.lo);
+        return 8;
+    case 0x1A:
+        RR(registerDE.hi);
+        return 8;
+    case 0x1B:
+        RR(registerDE.lo);
+        return 8;
+    case 0x1C:
+        RR(registerHL.hi);
+        return 8;
+    case 0x1D:
+        RR(registerHL.lo);
+        return 8;
+    case 0x1E:
+        RRMem(registerHL.reg);
+        return 16;
+    case 0x27:
+        SLA(registerAF.hi);
+        return 8;
+    case 0x20:
+        SLA(registerBC.hi);
+        return 8;
+    case 0x21:
+        SLA(registerBC.lo);
+        return 8;
+    case 0x22:
+        SLA(registerDE.hi);
+        return 8;
+    case 0x23:
+        SLA(registerDE.lo);
+        return 8;
+    case 0x24:
+        SLA(registerHL.hi);
+        return 8;
+    case 0x25:
+        SLA(registerHL.lo);
+        return 8;
+    case 0x26:
+        SLAMem(registerHL.reg);
+        return 16;
+    case 0x2F:
+        SRA(registerAF.hi);
+        return 8;
+    case 0x28:
+        SRA(registerBC.hi);
+        return 8;
+    case 0x29:
+        SRA(registerBC.lo);
+        return 8;
+    case 0x2A:
+        SRA(registerDE.hi);
+        return 8;
+    case 0x2B:
+        SRA(registerDE.lo);
+        return 8;
+    case 0x2C:
+        SRA(registerHL.hi);
+        return 8;
+    case 0x2D:
+        SRA(registerHL.lo);
+        return 8;
+    case 0x2E:
+        SRAMem(registerHL.reg);
+        return 16;
+    case 0x3F:
+        SRL(registerAF.hi);
+        return 8;
+    case 0x38:
+        SRL(registerBC.hi);
+        return 8;
+    case 0x39:
+        SRL(registerBC.lo);
+        return 8;
+    case 0x3A:
+        SRL(registerDE.hi);
+        return 8;
+    case 0x3B:
+        SRL(registerDE.lo);
+        return 8;
+    case 0x3C:
+        SRL(registerHL.hi);
+        return 8;
+    case 0x3D:
+        SRL(registerHL.lo);
+        return 8;
+    case 0x3E:
+        SRLMem(registerHL.reg);
+        return 8;
+
+
     }//end of switch
 }
