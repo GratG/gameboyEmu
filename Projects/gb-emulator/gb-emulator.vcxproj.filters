@@ -30,6 +30,9 @@
     <ClCompile Include="z80.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ram.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bus.h">
@@ -42,6 +45,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="z80.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ram.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

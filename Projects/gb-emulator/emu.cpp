@@ -33,6 +33,7 @@ int Emu::emuRun(const std::string& file)
 			continue;
 		}
 		//std::cout << cycles;
+		bus.cpu.clock();
 		//cycles++;
 		
 	}

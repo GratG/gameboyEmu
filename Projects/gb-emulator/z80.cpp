@@ -1,9 +1,18 @@
 #include "z80.h"
 #include "bus.h"
 #include <iostream>
-
+#include <format>
 
 z80::z80() {
+    registerAF.hi = 0x01;
+    registerAF.lo = 0xB0;
+    registerBC.hi = 0x00;
+    registerBC.lo = 0x13;
+    registerDE.hi = 0x00;
+    registerDE.lo = 0xD8;
+    registerHL.hi = 0x01;
+    registerHL.lo = 0x4D;
+
 
 }
 
@@ -17,14 +26,36 @@ void z80::ConnectBus(Bus* n) {
 
 void z80::clock()
 {
-    if (cycles == 0) {
-        opcode = read(pc);
-        pc++;
-        cycles = executeOP(opcode);
+    
+    if (!halted) {
+        if (cycles == 0) {
+            opcode = read(pc);
+            std::cout << std::hex
+                
+                
+                << " A: " << +registerAF.hi
+                << " F: " << +registerAF.lo
+                << " B: " << +registerBC.hi
+                << " C: " << +registerBC.lo
+                << " D: " << +registerDE.hi
+                << " E: " << +registerDE.lo
+                << " H: " << +registerHL.hi
+                << " L: " << +registerHL.lo
+                << " PC: " << pc
+                << "Instruction : 0x" << +opcode
+                << std::endl;
+            pc++;
+            cycles = executeOP(opcode);
+        }
+        cycles--;
+    } 
+    else { //is halted
+
     }
     //std::cout << +cycles << std::endl;
-    clock_cycles--;
-    cycles--;
+    //clock_cycles--;
+    
+    
 }
 
 uint8_t z80::getFlag(FLAGSz80 f)
@@ -58,6 +89,12 @@ uint8_t z80::read(uint16_t a) {
 
 }
 
+uint16_t z80::read16(uint16_t a)
+{
+    return bus->busRead16(a);
+}
+
+
 uint16_t z80::read16()
 {
     uint16_t v = read(pc + 1);
@@ -66,8 +103,36 @@ uint16_t z80::read16()
     return v;
 }
 
+void z80::pushSortToStack(uint16_t value)
+{
+    //obtain hi and lo bytes
+    uint8_t hi = value >> 8;
+    uint8_t lo = value & 0xFF;
+    //shift stack (down) and write to that position
+    sp--;
+    write(sp, hi);
+    sp--;
+    write(sp, lo);
+}
+
+uint16_t z80::popShortFromStack()
+{
+    //hi byte
+    nn = read(sp + 1) << 8;
+    //lo byte
+    nn |= read(sp);
+    sp++; sp++;
+    
+    return nn;
+}
+
 void z80::write(uint16_t a, uint8_t d) {
     bus->busWrite(a, d);
+}
+
+void z80::write16(uint16_t a, uint16_t d)
+{
+    bus->busWrite16(a, d);
 }
 
 uint8_t z80::resetBit(uint8_t b, uint8_t x)
@@ -84,33 +149,43 @@ uint8_t z80::setBit(uint8_t b, uint8_t x)
 
 void z80::BIT8_LOAD(uint8_t& reg) {
     //load immediate value of reg
-    uint8_t n = read(reg);
+    uint8_t n = read(pc);
     pc++;
     reg = n;
 }
-void z80::BIT8_LOAD(uint16_t& reg) {
-    uint8_t n = read(reg);
-    pc++;
-    reg = n;
-}
+//void z80::BIT8_LOAD(uint16_t& reg) {
+//    uint8_t n = read(reg);
+//    //pc++;
+//    reg = n;
+//}
 void z80::BIT8_LOAD(uint8_t& reg1, uint8_t& reg2) {
     reg1 = reg2;
-    pc++;
+    //pc++;
 }
 
-void z80::BIT8_LOAD(uint8_t& reg1, uint16_t& reg2) {
-    reg1 &= reg2;
-    pc++;
+
+
+void z80::BIT8_LOAD_MEM(uint8_t& reg1, uint16_t addr)
+{
+    reg1 = read(addr);
 }
 
-void z80::BIT8_LOAD(uint16_t& reg1, uint8_t& reg2) {
-    reg1 = reg2;
-    pc++;
-}
-
-void z80::BIT8_LOAD(uint16_t& reg1, uint16_t& reg2) {
-    reg1 = reg2;
-    pc++;
+//void z80::BIT8_LOAD(uint16_t& reg1, uint8_t& reg2) {
+//    reg1 = reg2;
+//    pc++;
+//}
+//
+//void z80::BIT8_LOAD(uint16_t& reg1, uint16_t& reg2) {
+//    reg1 = reg2;
+//    pc++;
+//}
+void z80::BIT16_LOAD(uint16_t& reg)
+{
+    nn = read(pc + 1);
+    nn <<= 8;
+    nn |= read(pc);
+    pc++; pc++;
+    reg = nn;
 }
 void z80::BIT16_DEC(uint16_t& reg)
 {
@@ -313,6 +388,26 @@ void z80::INC_8BIT(uint8_t& reg)
         registerAF.lo = resetBit(registerAF.lo, H);
 
 }
+void z80::INC_8BIT_MEM(uint8_t addr)
+{
+    uint8_t temp = read(addr);
+    write(addr, (temp + 1)); //inc value
+    uint8_t now = temp + 1;
+
+    //no flag reset
+    if (now == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+    else
+        registerAF.lo = resetBit(registerAF.lo, Z);
+
+    registerAF.lo = resetBit(registerAF.lo, N);
+
+    if ((temp & 0xF) == 0xF)
+        registerAF.lo = setBit(registerAF.lo, H);
+    else
+        registerAF.lo = resetBit(registerAF.lo, H);
+
+}
 void z80::INC_16BIT(uint16_t& reg)
 {
     uint16_t temp = reg;
@@ -351,6 +446,28 @@ void z80::DEC_8BIT(uint8_t& reg)
         registerAF.lo = resetBit(registerAF.lo, H);
 }
 
+void z80::DEC_8BIT_MEM(uint8_t addr)
+{
+    uint8_t temp = read(addr);
+    write(addr, (temp - 1)); //inc value
+    uint8_t now = temp - 1;
+
+    if (now == 0)
+        registerAF.lo = setBit(registerAF.lo, Z);
+    else
+        registerAF.lo = resetBit(registerAF.lo, Z);
+
+    //set substitution flag
+    registerAF.lo = resetBit(registerAF.lo, N);
+
+    if ((temp & 0xF) == 0xF)
+        registerAF.lo = setBit(registerAF.lo, H);
+    else
+        registerAF.lo = resetBit(registerAF.lo, H);
+}
+
+
+
 void z80::DEC_16BIT(uint16_t& reg)
 {
     uint16_t temp = reg;
@@ -383,18 +500,17 @@ void z80::SWAP_NIBBLES(uint8_t& reg)
 
 }
 
-void z80::SWAP_NIB_16(uint16_t& reg)
+void z80::SWAP_NIB_MEM(uint16_t addr)
 {
-    uint16_t temp = reg;
-    uint16_t temphi = temp & 0xFF00;
-    uint16_t templo = temp & 0x00FF;
-    uint8_t reglo = templo & 0x0F;
-    uint8_t reghi = templo & 0xF0;
-    reg = temphi | ((reglo << 4) | (reghi >> 4));
+    uint8_t temp = read(addr);
+    uint8_t reglo = temp & 0x0F;
+    uint8_t reghi = temp & 0xF0;
+    temp = (reglo << 4) | (reghi >> 4);
 
+    write(addr, temp);
 
     registerAF.lo = 0;
-    if (reg == 0)
+    if (temp == 0)
         registerAF.lo = setBit(registerAF.lo, Z);
 
 }
@@ -452,6 +568,89 @@ void z80::SCF()
     registerAF.lo = setBit(registerAF.lo, C);
     registerAF.lo = resetBit(registerAF.lo, H);
     registerAF.lo = resetBit(registerAF.lo, N);
+}
+
+void z80::JP()
+{
+    nn = read(pc + 1);
+    nn <<= 8;
+    nn |= read(pc);
+    pc++; pc++;
+
+    pc = nn;
+
+}
+
+void z80::JP(int flag, bool cond)
+{
+
+    nn = read(pc + 1);
+    nn <<= 8;
+    nn |= read(pc);
+    pc++; pc++;
+
+    if (checkBit(registerAF.lo, flag) == cond) {
+        pc = nn;
+    }       
+}
+
+void z80::JR()
+{
+    int8_t sn = (int8_t)read(pc);
+    pc++;
+    pc += sn;
+}
+
+void z80::JR(int flag, bool cond)
+{
+    int8_t sn = (int8_t)read(pc);
+    pc++;
+
+    if (checkBit(registerAF.lo, flag) == cond)
+        pc += sn;
+}
+
+void z80::CALL()
+{
+    nn = read(pc + 1);
+    nn <<= 8;
+    nn |= read(pc);
+    pc++; pc++;
+
+    pushSortToStack(pc);
+    pc = nn;
+
+}
+
+void z80::CALL(int flag, bool cond)
+{
+    nn = read(pc + 1);
+    nn <<= 8;
+    nn |= read(pc);
+    pc++; pc++;
+    if (checkBit(registerAF.lo, flag) == cond) {
+        pushSortToStack(pc);
+        pc = nn;
+    }
+
+}
+
+void z80::RET()
+{
+    pc = popShortFromStack();
+}
+
+void z80::RET(int flag, bool cond)
+{
+    if (checkBit(registerAF.lo, flag) == cond) {
+        pc = popShortFromStack();
+    }
+}
+
+void z80::RST(uint8_t byte)
+{
+    pushSortToStack(pc);
+    pc = byte;
 }
 
 void z80::RLC(uint8_t& reg)
@@ -530,27 +729,7 @@ void z80::RLMem(uint16_t addr)
     write(addr, reg);
 }
 
-void z80::RLCMem(uint16_t addr) {
-    uint8_t reg = read(addr);
 
-    bool isCarrySet = getFlag(C);
-    bool isSet = checkBit(reg, 7);
-
-    registerAF.lo = 0;
-    reg <<= 1;
-
-    if (isSet)
-        registerAF.lo = setBit(registerAF.lo, C);
-
-    if (isCarrySet)
-        reg = setBit(reg, 0);
-
-    if (reg == 0)
-        registerAF.lo = setBit(registerAF.lo, Z);
-
-    write(addr, reg);
-
-}
 
 void z80::RRC(uint8_t& reg)
 {
@@ -792,7 +971,7 @@ void z80::RESMem(uint16_t addr, int bit)
 // each opcode uses instructions in different static
 int z80::executeOP(uint8_t opcode)
 {
-    std::cout << std::hex << +opcode << std::endl;
+    //std::cout << std::hex << +opcode << std::endl;
     switch (opcode) {
         //all 8bit load opcodes:
     case 0x06:
@@ -836,7 +1015,7 @@ int z80::executeOP(uint8_t opcode)
         BIT8_LOAD(registerAF.hi, registerHL.lo);
         return 4;
     case 0x7E:
-        BIT8_LOAD(registerAF.hi, registerHL.reg);
+        BIT8_LOAD_MEM(registerAF.hi, registerHL.reg);
         return 8;
     case 0x40:
         BIT8_LOAD(registerBC.hi, registerBC.hi);
@@ -857,7 +1036,7 @@ int z80::executeOP(uint8_t opcode)
         BIT8_LOAD(registerBC.hi, registerHL.lo);
         return 4;
     case 0x46:
-        BIT8_LOAD(registerBC.hi, registerHL.reg);
+        BIT8_LOAD_MEM(registerBC.hi, registerHL.reg);
         return 8;
     case 0x48:
         BIT8_LOAD(registerBC.lo, registerBC.hi);
@@ -878,7 +1057,7 @@ int z80::executeOP(uint8_t opcode)
         BIT8_LOAD(registerBC.lo, registerHL.lo);
         return 4;
     case 0x4E:
-        BIT8_LOAD(registerBC.lo, registerHL.reg);
+        BIT8_LOAD_MEM(registerBC.lo, registerHL.reg);
         return 8;
     case 0x50:
         BIT8_LOAD(registerDE.hi, registerBC.hi);
@@ -899,7 +1078,7 @@ int z80::executeOP(uint8_t opcode)
         BIT8_LOAD(registerDE.hi, registerHL.lo);
         return 4;
     case 0x56:
-        BIT8_LOAD(registerDE.hi, registerHL.reg);
+        BIT8_LOAD_MEM(registerDE.hi, registerHL.reg);
         return 8;
     case 0x58:
         BIT8_LOAD(registerDE.lo, registerBC.hi);
@@ -920,7 +1099,7 @@ int z80::executeOP(uint8_t opcode)
         BIT8_LOAD(registerDE.lo, registerHL.lo);
         return 4;
     case 0x5E:
-        BIT8_LOAD(registerDE.lo, registerHL.reg);
+        BIT8_LOAD_MEM(registerDE.lo, registerHL.reg);
         return 8;
     case 0x60:
         BIT8_LOAD(registerHL.hi, registerBC.hi);
@@ -941,8 +1120,14 @@ int z80::executeOP(uint8_t opcode)
         BIT8_LOAD(registerHL.hi, registerHL.lo);
         return 4;
     case 0x66:
-        BIT8_LOAD(registerHL.hi, registerHL.reg);
+        BIT8_LOAD_MEM(registerHL.hi, registerHL.reg);
         return 8;
+    case 0x3E: {
+        n = read(pc);
+        pc++;
+        registerAF.hi = n;
+        return 8;
+    }
     case 0x68:
         BIT8_LOAD(registerHL.lo, registerBC.hi);
         return 4;
@@ -962,44 +1147,44 @@ int z80::executeOP(uint8_t opcode)
         BIT8_LOAD(registerHL.lo, registerHL.lo);
         return 4;
     case 0x6E:
-        BIT8_LOAD(registerHL.lo, registerHL.reg);
+        BIT8_LOAD_MEM(registerHL.lo, registerHL.reg);
         return 8;
     case 0x70:
-        BIT8_LOAD(registerHL.reg, registerBC.hi);
+        write(registerHL.reg, registerBC.hi);
         return 8;
     case 0x71:
-        BIT8_LOAD(registerHL.reg, registerBC.lo);
+        write(registerHL.reg, registerBC.lo);
         return 8;
     case 0x72:
-        BIT8_LOAD(registerHL.reg, registerDE.hi);
+        write(registerHL.reg, registerDE.hi);
         return 8;
     case 0x73:
-        BIT8_LOAD(registerHL.reg, registerDE.lo);
+        write(registerHL.reg, registerDE.lo);
         return 8;
     case 0x74:
-        BIT8_LOAD(registerHL.reg, registerHL.hi);
+        write(registerHL.reg, registerHL.hi);
         return 8;
     case 0x75:
-        BIT8_LOAD(registerHL.reg, registerHL.lo);
+        write(registerHL.reg, registerHL.lo);
         return 8;
     case 0x36:
-        BIT8_LOAD(registerHL.reg);
+        n = read(pc);
+        pc++;
+        write(registerHL.reg, n);
         return 12;
     case 0x0A:
-        BIT8_LOAD(registerAF.hi, registerBC.reg);
+        BIT8_LOAD_MEM(registerAF.hi, registerBC.reg);
         return 8;
     case 0x1A:
-        BIT8_LOAD(registerAF.hi, registerDE.reg);
+        BIT8_LOAD_MEM(registerAF.hi, registerDE.reg);
         return 8;
-    case 0xFA:
+    case 0xFA: {
         nn = read16();
         n = read(nn);
         registerAF.hi = n;
         pc++; pc++;
         return 16;
-    case 0x03E:
-        BIT8_LOAD(registerAF.hi);
-        return 8;
+    }
     case 0x47:
         BIT8_LOAD(registerBC.hi, registerAF.hi);
         return 4;
@@ -1019,14 +1204,15 @@ int z80::executeOP(uint8_t opcode)
         BIT8_LOAD(registerBC.hi, registerAF.hi);
         return 4;
     case 0x02:
-        BIT8_LOAD(registerBC.reg, registerAF.hi);
+        write(registerBC.reg, registerAF.hi);
         return 8;
     case 0x12:
-        BIT8_LOAD(registerDE.reg, registerAF.hi);
+        write(registerDE.reg, registerAF.hi);
         return 8;
     case 0x77:
-        BIT8_LOAD(registerHL.reg, registerAF.hi);
+        write(registerHL.reg, registerAF.hi);
         return 8;
+
     case 0xEA:
         nn = read16();
         n = read(nn);
@@ -1044,17 +1230,20 @@ int z80::executeOP(uint8_t opcode)
         return 8;
         //load A into memory, dec/inc HL
     case 0x3A:
-        BIT8_LOAD(registerAF.hi, registerHL.reg);
+        BIT8_LOAD_MEM(registerAF.hi, registerHL.reg);
         BIT16_DEC(registerHL.reg);
         return 8;
     case 0x2A:
-        BIT8_LOAD(registerAF.hi, registerHL.reg);
+        BIT8_LOAD_MEM(registerAF.hi, registerHL.reg);
         BIT16_INC(registerHL.reg);
         return 8;
     case 0x22:
-        BIT8_LOAD(registerHL.reg, registerAF.hi);
+        write(registerHL.reg, registerAF.hi);
         BIT16_INC(registerHL.reg);
         return 8;
+    case 0x32:
+        write(registerHL.reg, registerAF.hi);
+        BIT16_DEC(registerHL.reg);
         //load n + 0xFF00 to A
     case 0xE0:
         n = read(pc);
@@ -1067,19 +1256,19 @@ int z80::executeOP(uint8_t opcode)
         BIT8_LOAD(registerAF.hi, n);
         return 12;
     case 0x01:
-        BIT8_LOAD(registerBC.reg);
+        BIT16_LOAD(registerBC.reg);
         return 12;
     case 0x11:
-        BIT8_LOAD(registerDE.reg);
+        BIT16_LOAD(registerDE.reg);
         return 12;
     case 0x21:
-        BIT8_LOAD(registerHL.reg);
+        BIT16_LOAD(registerHL.reg);
         return 12;
     case 0x31:
-        BIT8_LOAD(sp);
+        BIT16_LOAD(sp);
         return 12;
     case 0xF9:
-        BIT8_LOAD(sp, registerHL.reg);
+        sp = registerHL.reg;
         return 8;
     case 0xF8: {
         n = read(pc);
@@ -1101,11 +1290,17 @@ int z80::executeOP(uint8_t opcode)
             registerAF.lo = resetBit(registerAF.lo, H);
         return 12;
     }
-    case 0x08:
+    case 0x08: {
         nn = read16();
         pc += 2;
-        BIT8_LOAD(nn, sp);
+        uint8_t lo = sp & 0x00FF;
+        uint8_t hi = (sp & 0xFF00) >>8;
+
+        write(nn, lo);
+        nn++;
+        write(nn, hi);
         return 20;
+    }
     case 0xF5:
         PUSH16(registerAF.reg);
         return 16;
@@ -1152,7 +1347,7 @@ int z80::executeOP(uint8_t opcode)
         ADD_8BIT(registerAF.hi, registerHL.lo, false);
         return 4;
     case 0x86:
-        ADD_8BIT(registerAF.hi, registerHL.reg, false);
+        ADD_8BIT(registerAF.hi, read(registerHL.reg), false);
         return 8;
     case 0xC6:
         n = read(pc);
@@ -1160,7 +1355,7 @@ int z80::executeOP(uint8_t opcode)
         ADD_8BIT(registerAF.hi, n, false);
         return 8;
     case 0x8F:
-        ADD_8BIT(registerAF.hi, registerHL.reg, true);
+        ADD_8BIT(registerAF.hi, registerAF.hi, true);
         return 4;
     case 0x88:
         ADD_8BIT(registerAF.hi, registerBC.hi, true);
@@ -1181,7 +1376,7 @@ int z80::executeOP(uint8_t opcode)
         ADD_8BIT(registerAF.hi, registerHL.lo, true);
         return 4;
     case 0x8E:
-        ADD_8BIT(registerAF.hi, registerHL.reg, true);
+        ADD_8BIT(registerAF.hi, read(registerHL.reg), true);
         return 8;
     case 0xCE:
         n = read(pc);
@@ -1210,7 +1405,7 @@ int z80::executeOP(uint8_t opcode)
         SUB_8BIT(registerAF.hi, registerHL.lo, false);
         return 4;
     case 0x96:
-        SUB_8BIT(registerAF.hi, registerHL.reg, false);
+        SUB_8BIT(registerAF.hi, read(registerHL.reg), false);
         return 8;
     case 0xD6:
         n = read(pc);
@@ -1239,7 +1434,7 @@ int z80::executeOP(uint8_t opcode)
         SUB_8BIT(registerAF.hi, registerHL.lo, true);
         return 4;
     case 0x9E:
-        SUB_8BIT(registerAF.hi, registerHL.reg, true);
+        SUB_8BIT(registerAF.hi, read(registerHL.reg), true);
         return 8;
         /*case ??:
             n = read(pc);
@@ -1273,7 +1468,7 @@ int z80::executeOP(uint8_t opcode)
         AND_8BIT(registerAF.hi, registerHL.lo);
         return 4;
     case 0xA6:
-        AND_8BIT(registerAF.hi, registerHL.reg);
+        AND_8BIT(registerAF.hi, read(registerHL.reg));
         return 8;
     case 0xE6:
         n = read(pc);
@@ -1302,7 +1497,7 @@ int z80::executeOP(uint8_t opcode)
         OR_8BIT(registerAF.hi, registerHL.lo);
         return 4;
     case 0xB6:
-        OR_8BIT(registerAF.hi, registerHL.reg);
+        OR_8BIT(registerAF.hi, read(registerHL.reg));
         return 8;
     case 0xF6:
         n = read(pc);
@@ -1331,7 +1526,7 @@ int z80::executeOP(uint8_t opcode)
         XOR_8BIT(registerAF.hi, registerHL.lo);
         return 4;
     case 0xAE:
-        XOR_8BIT(registerAF.hi, registerHL.reg);
+        XOR_8BIT(registerAF.hi, read(registerHL.reg));
         return 8;
     case 0xEE:
         n = read(pc);
@@ -1360,7 +1555,7 @@ int z80::executeOP(uint8_t opcode)
         CP_8BIT(registerAF.hi, registerHL.lo);
         return 4;
     case 0xBE:
-        CP_8BIT(registerAF.hi, registerHL.reg);
+        CP_8BIT(registerAF.hi, read(registerHL.reg));
         return 8;
     case 0xFE:
         n = read(pc);
@@ -1427,11 +1622,12 @@ int z80::executeOP(uint8_t opcode)
     case 0x39:
         ADD_16BIT(registerHL.reg, sp);
         return 8;
-    case 0xE8:
-        n = read(pc);
+    case 0xE8: {
+        int8_t sn = (int8_t)read(pc);
         pc++;
-        ADD_16BIT(sp, n);
+        ADD_16BIT(sp, sn);
         return 16;
+    }
     case 0x03:
         registerBC.reg++;
         return 8;
@@ -1493,6 +1689,105 @@ int z80::executeOP(uint8_t opcode)
     case 0x1F:
         RR(registerAF.hi);
         return 4;
+    case 0xC3:
+        JP();
+        return 12;
+    case 0xC2:
+        JP(Z, false);
+        return 12;
+    case 0xCA:
+        JP(Z, true);
+        return 12;
+    case 0xD2:
+        JP(C, false);
+        return 12;
+    case 0xDA:
+        JP(C, true);
+        return 12;
+    case 0xE9:
+        pc = registerHL.reg;
+        return 4;
+    case 0x18:
+        JR();
+        return 8;
+    case 0x20:
+        JR(Z, false);
+        return 8;
+    case 0x28:
+        JR(Z, true);
+        return 8;
+    case 0x30:
+        JR(C, false);
+        return 8;
+    case 0x38:
+        JR(C, false);
+        return 8;
+    case 0xCD:
+        CALL();
+        return 12;
+    case 0xC4:
+        CALL(Z, false);
+        return 12;
+    case 0xCC:
+        CALL(Z, true);
+        return 12;
+    case 0xD4:
+        CALL(C, false);
+        return 12;
+    case 0xDC:
+        CALL(C, true);
+        return 12;
+    case 0xC9:
+        RET();
+        return 8;
+    case 0xC0:
+        RET(Z, false);
+        return 8;
+    case 0xC8:
+        RET(Z, true);
+        return 8;
+    case 0xD0:
+        RET(C, false);
+        return 8;
+    case 0xD8:
+        RET(C, true);
+        return 8;
+    case 0xC7:
+        RST(0x00);
+        return 32;
+    case 0xCF:
+        RST(0x08);
+        return 32;
+    case 0xD7:
+        RST(0x10);
+        return 32;
+    case 0xDF:
+        RST(0x18);
+        return 32;
+    case 0xE7:
+        RST(0x20);
+        return 32;
+    case 0xEF:
+        RST(0x28);
+        return 32;
+    case 0xF7:
+        RST(0x30);
+        return 32;
+    case 0xFF:
+        RST(0x38);
+        return 32;
+    case 0xD9: {
+        //RETI(); used when returning from interupt (gets instruction back from stack)
+        pc = popShortFromStack();
+        enableInterrupts = true;
+        return 8; 
+    }
+
+
+
+
+
+
     case 0xCB: {
         pc++;
         uint8_t exOpcode = read(pc);
@@ -1529,7 +1824,7 @@ int z80::executeExOP(uint8_t opcode) {
         SWAP_NIBBLES(registerHL.lo);
         return 8;
     case 0x36:
-        SWAP_NIB_16(registerHL.reg);
+        SWAP_NIB_MEM(registerHL.reg);
         return 16;
     case 0x07:
         RLC(registerAF.hi);
@@ -1698,8 +1993,614 @@ int z80::executeExOP(uint8_t opcode) {
         return 8;
     case 0x3E:
         SRLMem(registerHL.reg);
+        return 16;
+    //test bit 0
+    case 0x47:
+        testBit(registerAF.hi, 0);
         return 8;
+    case 0x40:
+        testBit(registerBC.hi, 0);
+        return 8;
+    case 0x41:
+        testBit(registerBC.lo, 0);
+        return 8;
+    case 0x42:
+        testBit(registerDE.hi, 0);
+        return 8;
+    case 0x43:
+        testBit(registerDE.lo, 0);
+        return 8;
+    case 0x44:
+        testBit(registerHL.hi, 0);
+        return 8;
+    case 0x45:
+        testBit(registerHL.lo, 0);
+        return 8;
+    case 0x46:
+        testBitMem(registerHL.reg, 0);
+        return 12;
+        //test bit 1
+    case 0x4F:
+        testBit(registerAF.hi, 1);
+        return 8;
+    case 0x48:
+        testBit(registerBC.hi, 1);
+        return 8;
+    case 0x49:
+        testBit(registerBC.lo, 1);
+        return 8;
+    case 0x4A:
+        testBit(registerDE.hi, 1);
+        return 8;
+    case 0x4B:
+        testBit(registerDE.lo, 1);
+        return 8;
+    case 0x4C:
+        testBit(registerHL.hi, 1);
+        return 8;
+    case 0x4D:
+        testBit(registerHL.lo, 1);
+        return 8;
+    case 0x4E:
+        testBitMem(registerHL.reg, 1);
+        return 12;
+        //test bit 2
+    case 0x57:
+        testBit(registerAF.hi, 2);
+        return 8;
+    case 0x50:
+        testBit(registerBC.hi, 2);
+        return 8;
+    case 0x51:
+        testBit(registerBC.lo, 2);
+        return 8;
+    case 0x52:
+        testBit(registerDE.hi, 2);
+        return 8;
+    case 0x53:
+        testBit(registerDE.lo, 2);
+        return 8;
+    case 0x54:
+        testBit(registerHL.hi, 2);
+        return 8;
+    case 0x55:
+        testBit(registerHL.lo, 2);
+        return 8;
+    case 0x56:
+        testBitMem(registerHL.reg, 2);
+        return 12;
+        //test bit 3
+    case 0x5F:
+        testBit(registerAF.hi, 3);
+        return 8;
+    case 0x58:
+        testBit(registerBC.hi, 3);
+        return 8;
+    case 0x59:
+        testBit(registerBC.lo, 3);
+        return 8;
+    case 0x5A:
+        testBit(registerDE.hi, 3);
+        return 8;
+    case 0x5B:
+        testBit(registerDE.lo, 3);
+        return 8;
+    case 0x5C:
+        testBit(registerHL.hi, 3);
+        return 8;
+    case 0x5D:
+        testBit(registerHL.lo, 3);
+        return 8;
+    case 0x5E:
+        testBitMem(registerHL.reg, 3);
+        return 12;
+        //test bit 4
+    case 0x67:
+        testBit(registerAF.hi, 4);
+        return 8;
+    case 0x60:
+        testBit(registerBC.hi, 4);
+        return 8;
+    case 0x61:
+        testBit(registerBC.lo, 4);
+        return 8;
+    case 0x62:
+        testBit(registerDE.hi, 4);
+        return 8;
+    case 0x63:
+        testBit(registerDE.lo, 4);
+        return 8;
+    case 0x64:
+        testBit(registerHL.hi, 4);
+        return 8;
+    case 0x65:
+        testBit(registerHL.lo, 4);
+        return 8;
+    case 0x66:
+        testBitMem(registerHL.reg, 4);
+        return 12;
+        //test bit 5
+    case 0x6F:
+        testBit(registerAF.hi, 5);
+        return 8;
+    case 0x68:
+        testBit(registerBC.hi, 5);
+        return 8;
+    case 0x69:
+        testBit(registerBC.lo, 5);
+        return 8;
+    case 0x6A:
+        testBit(registerDE.hi, 5);
+        return 8;
+    case 0x6B:
+        testBit(registerDE.lo, 5);
+        return 8;
+    case 0x6C:
+        testBit(registerHL.hi, 5);
+        return 8;
+    case 0x6D:
+        testBit(registerHL.lo, 5);
+        return 8;
+    case 0x6E:
+        testBitMem(registerHL.reg, 5);
+        return 12;
+        //test bit 6
+    case 0x77:
+        testBit(registerAF.hi, 6);
+        return 8;
+    case 0x70:
+        testBit(registerBC.hi, 6);
+        return 8;
+    case 0x71:
+        testBit(registerBC.lo, 6);
+        return 8;
+    case 0x72:
+        testBit(registerDE.hi, 6);
+        return 8;
+    case 0x73:
+        testBit(registerDE.lo, 6);
+        return 8;
+    case 0x74:
+        testBit(registerHL.hi, 6);
+        return 8;
+    case 0x75:
+        testBit(registerHL.lo, 6);
+        return 8;
+    case 0x76:
+        testBitMem(registerHL.reg, 6);
+        return 12;
+        //test bit 7
+    case 0x7F:
+        testBit(registerAF.hi, 7);
+        return 8;
+    case 0x78:
+        testBit(registerBC.hi, 7);
+        return 8;
+    case 0x79:
+        testBit(registerBC.lo, 7);
+        return 8;
+    case 0x7A:
+        testBit(registerDE.hi, 7);
+        return 8;
+    case 0x7B:
+        testBit(registerDE.lo, 7);
+        return 8;
+    case 0x7C:
+        testBit(registerHL.hi, 7);
+        return 8;
+    case 0x7D:
+        testBit(registerHL.lo, 7);
+        return 8;
+    case 0x7E:
+        testBitMem(registerHL.reg, 7);
+        return 12;
+    //Reset bit 0
+    case 0x87:
+        RES(registerAF.hi, 0);
+        return 8;
+    case 0x80:
+        RES(registerBC.hi, 0);
+        return 8;
+    case 0x81:
+        RES(registerBC.lo, 0);
+        return 8;
+    case 0x82:
+        RES(registerDE.hi, 0);
+        return 8;
+    case 0x83:
+        RES(registerDE.lo, 0);
+        return 8;
+    case 0x84:
+        RES(registerHL.hi, 0);
+        return 8;
+    case 0x85:
+        RES(registerHL.lo, 0);
+        return 8;
+    case 0x86:
+        RESMem(registerHL.reg, 0);
+        return 16;
+        //Reset bit 1
+    case 0x8F:
+        RES(registerAF.hi, 1);
+        return 8;
+    case 0x88:
+        RES(registerBC.hi, 1);
+        return 8;
+    case 0x89:
+        RES(registerBC.lo, 1);
+        return 8;
+    case 0x8A:
+        RES(registerDE.hi, 1);
+        return 8;
+    case 0x8B:
+        RES(registerDE.lo, 1);
+        return 8;
+    case 0x8C:
+        RES(registerHL.hi, 1);
+        return 8;
+    case 0x8D:
+        RES(registerHL.lo, 1);
+        return 8;
+    case 0x8E:
+        RESMem(registerHL.reg, 1);
+        return 16;
+        //Reset bit 2
+    case 0x97:
+        RES(registerAF.hi, 2);
+        return 8;
+    case 0x90:
+        RES(registerBC.hi, 2);
+        return 8;
+    case 0x91:
+        RES(registerBC.lo, 2);
+        return 8;
+    case 0x92:
+        RES(registerDE.hi, 2);
+        return 8;
+    case 0x93:
+        RES(registerDE.lo, 2);
+        return 8;
+    case 0x94:
+        RES(registerHL.hi, 2);
+        return 8;
+    case 0x95:
+        RES(registerHL.lo, 2);
+        return 8;
+    case 0x96:
+        RESMem(registerHL.reg, 2);
+        return 16;
+        //Reset bit 3
+    case 0x9F:
+        RES(registerAF.hi, 3);
+        return 8;
+    case 0x98:
+        RES(registerBC.hi, 3);
+        return 8;
+    case 0x99:
+        RES(registerBC.lo, 3);
+        return 8;
+    case 0x9A:
+        RES(registerDE.hi, 3);
+        return 8;
+    case 0x9B:
+        RES(registerDE.lo, 3);
+        return 8;
+    case 0x9C:
+        RES(registerHL.hi, 3);
+        return 8;
+    case 0x9D:
+        RES(registerHL.lo, 3);
+        return 8;
+    case 0x9E:
+        RESMem(registerHL.reg, 3);
+        return 16;
+        //Reset bit 4
+    case 0xA7:
+        RES(registerAF.hi, 4);
+        return 8;
+    case 0xA0:
+        RES(registerBC.hi, 4);
+        return 8;
+    case 0xA1:
+        RES(registerBC.lo, 4);
+        return 8;
+    case 0xA2:
+        RES(registerDE.hi, 4);
+        return 8;
+    case 0xA3:
+        RES(registerDE.lo, 4);
+        return 8;
+    case 0xA4:
+        RES(registerHL.hi, 4);
+        return 8;
+    case 0xA5:
+        RES(registerHL.lo, 4);
+        return 8;
+    case 0xA6:
+        RESMem(registerHL.reg, 4);
+        return 16;
+        //Reset bit 5
+    case 0xAF:
+        RES(registerAF.hi, 5);
+        return 8;
+    case 0xA8:
+        RES(registerBC.hi, 5);
+        return 8;
+    case 0xA9:
+        RES(registerBC.lo, 5);
+        return 8;
+    case 0xAA:
+        RES(registerDE.hi, 5);
+        return 8;
+    case 0xAB:
+        RES(registerDE.lo, 5);
+        return 8;
+    case 0xAC:
+        RES(registerHL.hi, 5);
+        return 8;
+    case 0xAD:
+        RES(registerHL.lo, 5);
+        return 8;
+    case 0xAE:
+        RESMem(registerHL.reg, 5);
+        return 16;
+        //Reset bit 6
+    case 0xB7:
+        RES(registerAF.hi, 6);
+        return 8;
+    case 0xB0:
+        RES(registerBC.hi, 6);
+        return 8;
+    case 0xB1:
+        RES(registerBC.lo, 6);
+        return 8;
+    case 0xB2:
+        RES(registerDE.hi, 6);
+        return 8;
+    case 0xB3:
+        RES(registerDE.lo, 6);
+        return 8;
+    case 0xB4:
+        RES(registerHL.hi, 6);
+        return 8;
+    case 0xB5:
+        RES(registerHL.lo, 6);
+        return 8;
+    case 0xB6:
+        RESMem(registerHL.reg, 6);
+        return 16;
+        //Reset bit 7
+    case 0xBF:
+        RES(registerAF.hi, 7);
+        return 8;
+    case 0xB8:
+        RES(registerBC.hi, 7);
+        return 8;
+    case 0xB9:
+        RES(registerBC.lo, 7);
+        return 8;
+    case 0xBA:
+        RES(registerDE.hi, 7);
+        return 8;
+    case 0xBB:
+        RES(registerDE.lo, 7);
+        return 8;
+    case 0xBC:
+        RES(registerHL.hi, 7);
+        return 8;
+    case 0xBD:
+        RES(registerHL.lo, 7);
+        return 8;
+    case 0xBE:
+        RESMem(registerHL.reg, 7);
+        return 16;
+        //SET bit at 0
+    case 0xC7:
+        SET(registerAF.hi, 0);
+        return 8;
+    case 0xC0:
+        SET(registerBC.hi, 0);
+        return 8;
+    case 0xC1:
+        SET(registerBC.lo, 0);
+        return 8;
+    case 0xC2:
+        SET(registerDE.hi, 0);
+        return 8;
+    case 0xC3:
+        SET(registerDE.lo, 0);
+        return 8;
+    case 0xC4:
+        SET(registerHL.hi, 0);
+        return 8;
+    case 0xC5:
+        SET(registerHL.lo, 0);
+        return 8;
+    case 0xC6:
+        SETMem(registerHL.reg, 0);
+        return 16;
+        //SET bit at 1
+    case 0xCF:
+        SET(registerAF.hi, 1);
+        return 8;
+    case 0xC8:
+        SET(registerBC.hi, 1);
+        return 8;
+    case 0xC9:
+        SET(registerBC.lo, 1);
+        return 8;
+    case 0xCA:
+        SET(registerDE.hi, 1);
+        return 8;
+    case 0xCB:
+        SET(registerDE.lo, 1);
+        return 8;
+    case 0xCC:
+        SET(registerHL.hi, 1);
+        return 8;
+    case 0xCD:
+        SET(registerHL.lo, 1);
+        return 8;
+    case 0xCE:
+        SETMem(registerHL.reg, 1);
+        return 16;
+        //SET bit at 2
+    case 0xD7:
+        SET(registerAF.hi, 2);
+        return 8;
+    case 0xD0:
+        SET(registerBC.hi, 2);
+        return 8;
+    case 0xD1:
+        SET(registerBC.lo, 2);
+        return 8;
+    case 0xD2:
+        SET(registerDE.hi, 2);
+        return 8;
+    case 0xD3:
+        SET(registerDE.lo, 2);
+        return 8;
+    case 0xD4:
+        SET(registerHL.hi, 2);
+        return 8;
+    case 0xD5:
+        SET(registerHL.lo, 2);
+        return 8;
+    case 0xD6:
+        SETMem(registerHL.reg, 2);
+        return 16;
+        //SET bit at 3
+    case 0xDF:
+        SET(registerAF.hi, 3);
+        return 8;
+    case 0xD8:
+        SET(registerBC.hi, 3);
+        return 8;
+    case 0xD9:
+        SET(registerBC.lo, 3);
+        return 8;
+    case 0xDA:
+        SET(registerDE.hi, 3);
+        return 8;
+    case 0xDB:
+        SET(registerDE.lo, 3);
+        return 8;
+    case 0xDC:
+        SET(registerHL.hi, 3);
+        return 8;
+    case 0xDD:
+        SET(registerHL.lo, 3);
+        return 8;
+    case 0xDE:
+        SETMem(registerHL.reg, 3);
+        return 16;
+        //SET bit at 4
+    case 0xE7:
+        SET(registerAF.hi, 4);
+        return 8;
+    case 0xE0:
+        SET(registerBC.hi, 4);
+        return 8;
+    case 0xE1:
+        SET(registerBC.lo, 4);
+        return 8;
+    case 0xE2:
+        SET(registerDE.hi, 4);
+        return 8;
+    case 0xE3:
+        SET(registerDE.lo, 4);
+        return 8;
+    case 0xE4:
+        SET(registerHL.hi, 4);
+        return 8;
+    case 0xE5:
+        SET(registerHL.lo, 4);
+        return 8;
+    case 0xE6:
+        SETMem(registerHL.reg, 4);
+        return 16;
+    //SET bit at 5
+    case 0xEF:
+        SET(registerAF.hi, 5);
+        return 8;
+    case 0xE8:
+        SET(registerBC.hi, 5);
+        return 8;
+    case 0xE9:
+        SET(registerBC.lo, 5);
+        return 8;
+    case 0xEA:
+        SET(registerDE.hi, 5);
+        return 8;
+    case 0xEB:
+        SET(registerDE.lo, 5);
+        return 8;
+    case 0xEC:
+        SET(registerHL.hi, 5);
+        return 8;
+    case 0xED:
+        SET(registerHL.lo, 5);
+        return 8;
+    case 0xEE:
+        SETMem(registerHL.reg, 5);
+        return 16;
+    //SET bit at 6
+    case 0xF7:
+        SET(registerAF.hi, 6);
+        return 8;
+    case 0xF0:
+        SET(registerBC.hi, 6);
+        return 8;
+    case 0xF1:
+        SET(registerBC.lo, 6);
+        return 8;
+    case 0xF2:
+        SET(registerDE.hi, 6);
+        return 8;
+    case 0xF3:
+        SET(registerDE.lo, 6);
+        return 8;
+    case 0xF4:
+        SET(registerHL.hi, 6);
+        return 8;
+    case 0xF5:
+        SET(registerHL.lo, 6);
+        return 8;
+    case 0xF6:
+        SETMem(registerHL.reg, 6);
+        return 16;
+        //SET bit at 7
+    case 0xFF:
+        SET(registerAF.hi, 7);
+        return 8;
+    case 0xF8:
+        SET(registerBC.hi, 7);
+        return 8;
+    case 0xF9:
+        SET(registerBC.lo, 7);
+        return 8;
+    case 0xFA:
+        SET(registerDE.hi, 7);
+        return 8;
+    case 0xFB:
+        SET(registerDE.lo, 7);
+        return 8;
+    case 0xFC:
+        SET(registerHL.hi, 7);
+        return 8;
+    case 0xFD:
+        SET(registerHL.lo, 7);
+        return 8;
+    case 0xFE:
+        SETMem(registerHL.reg, 7);
+        return 16;
+    
 
+
+
+    default:
+        std::cout << "Invalid ExOpcode" << std::endl;
+        break;
 
     }//end of switch
 }

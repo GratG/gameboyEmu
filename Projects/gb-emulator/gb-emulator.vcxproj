@@ -134,12 +134,14 @@
     <ClCompile Include="cartridge.cpp" />
     <ClCompile Include="emu.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="ram.cpp" />
     <ClCompile Include="z80.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bus.h" />
     <ClInclude Include="cartridge.h" />
     <ClInclude Include="emu.h" />
+    <ClInclude Include="ram.h" />
     <ClInclude Include="z80.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
