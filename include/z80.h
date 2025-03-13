@@ -1,11 +1,9 @@
 #pragma once
 #include <cstdint>
 #include <iostream>
-#include "Interrupt.h"
 //#include "bus.h"
 
 class Bus;
-class Interrupt;
 
 class z80
 {
