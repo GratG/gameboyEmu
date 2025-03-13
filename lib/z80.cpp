@@ -66,12 +66,14 @@ void z80::clock()
         cycles--;
     } 
     else { //is halted
+        cycles++;
         if (int_flags) {
             halted = false;
         }
     }
     if (interruptsEnabled) {
         //handle interrupt
+        cpu_handleInterrupt(this);
         enablingInterrupts = false;
     }
     if (enablingInterrupts) {
@@ -87,6 +89,14 @@ uint8_t z80::getFlag(FLAGSz80 f)
 {
     //extract f from lo reg, if f > 0 return 1 else return 0
     return ((registerAF.lo & f) > 0) ? 1 : 0;
+}
+
+uint8_t z80::getIntFlag(){
+    reuturn int_flags;
+}
+
+void z80::setIntFlags(uint8_t value){
+    int_flags = value;
 }
 
 

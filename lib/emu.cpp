@@ -1,6 +1,8 @@
 #include "emu.h"
 #include <iostream>
-#include <thread>
+
+
+#include <pthread.h>
 
 
  
@@ -33,11 +35,11 @@ int Emu::emuRun(const std::string& f)
 	bus.insertCartridge(cartridge);
 	debug = new dbg(&bus);
 
-	for (int i = 0; i < 10000; i++) {
-		bus.cpu.clock();
-		debug->dbgUpdate();
-		debug->dbgPrint();
-	}
+	//for (int i = 0; i < 10000; i++) {
+	//	bus.cpu.clock();
+	//	debug->dbgUpdate();
+	//	debug->dbgPrint();
+	//}
 	while (running) {
 
 		if (paused) {
@@ -51,6 +53,8 @@ int Emu::emuRun(const std::string& f)
 			debug->dbgUpdate();
 			debug->dbgPrint();
 		}
+		//check cpu interrupt
+		bus.cpu.handleInterrupts();
 
 		//renderer.handle_events();
 		ticks++;

@@ -47,6 +47,8 @@ public:
     uint8_t ie_register;
     uint8_t int_flags;
     Interrupt* interrupt;
+    uint8_t getIntFlag();
+    void setIntFlags(uint8_t value);
     bool interruptsEnabled;
     bool enablingInterrupts;
     bool halted;
