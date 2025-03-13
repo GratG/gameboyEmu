@@ -44,11 +44,21 @@ public:
     Register registerDE;
     Register registerHL;
     //interrupts:
+    enum interruptType{
+        IT_VBLANK = 0,
+        IT_LCD_STAT = 1,
+        IT_TIMER = 2,
+        IT_SERIAL = 3,
+        IT_JOYPAD = 4
+    };
     uint8_t ie_register;
     uint8_t int_flags;
-    Interrupt* interrupt;
+    
     uint8_t getIntFlag();
     void setIntFlags(uint8_t value);
+    void handleInterrupts();//goes through interrupt checks
+    bool intCheck(uint16_t addr, interruptType it);
+    void intHandle(uint16_t addr);
     bool interruptsEnabled;
     bool enablingInterrupts;
     bool halted;

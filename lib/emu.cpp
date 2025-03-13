@@ -54,7 +54,7 @@ int Emu::emuRun(const std::string& f)
 			debug->dbgPrint();
 		}
 		//check cpu interrupt
-		bus.cpu.handleInterrupts();
+		//bus.cpu.handleInterrupts();
 
 		//renderer.handle_events();
 		ticks++;

@@ -5,7 +5,7 @@
 
 z80::z80() {
     
-    interrupt = new Interrupt(this);
+    
     registerAF.hi = 0x01;
     registerAF.lo = 0xB0;
     registerBC.hi = 0x00;
@@ -73,7 +73,8 @@ void z80::clock()
     }
     if (interruptsEnabled) {
         //handle interrupt
-        cpu_handleInterrupt(this);
+        //std::cout << "HANDLING INTERUPTS!" <<std::endl;
+        handleInterrupts();
         enablingInterrupts = false;
     }
     if (enablingInterrupts) {
@@ -85,6 +86,38 @@ void z80::clock()
     
 }
 
+void z80::handleInterrupts(){
+
+    if (intCheck(0x40, IT_VBLANK)) {
+
+    } else if (intCheck(0x48, IT_LCD_STAT)) {
+
+    } else if (intCheck(0x50, IT_TIMER)) {
+
+    }  else if (intCheck(0x58, IT_SERIAL)) {
+
+    }  else if (intCheck(0x60, IT_JOYPAD)) {
+
+    } 
+
+}
+
+bool z80::intCheck(uint16_t addr, interruptType it){
+    if ((int_flags & it) && (ie_register & it)){
+        intHandle(addr);
+        int_flags &= ~it;
+        halted = false;
+        interruptsEnabled = false;
+        return true;
+    }
+    return false;
+}
+
+void z80::intHandle(uint16_t addr){
+    pushShortToStack(pc);
+    pc = addr;
+}
+
 uint8_t z80::getFlag(FLAGSz80 f)
 {
     //extract f from lo reg, if f > 0 return 1 else return 0
@@ -92,7 +125,7 @@ uint8_t z80::getFlag(FLAGSz80 f)
 }
 
 uint8_t z80::getIntFlag(){
-    reuturn int_flags;
+    return int_flags;
 }
 
 void z80::setIntFlags(uint8_t value){
