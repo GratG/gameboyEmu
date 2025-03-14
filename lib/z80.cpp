@@ -14,7 +14,10 @@ z80::z80() {
     registerDE.lo = 0xD8;
     registerHL.hi = 0x01;
     registerHL.lo = 0x4D;
-
+    ie_register = 0;
+    int_flags = 0;
+    interruptsEnabled = false;
+    enablingInterrupts = false;
     
 }
 
@@ -33,7 +36,7 @@ int z80::getCycles()
 
 
 
-void z80::clock()
+bool z80::clock()
 {
     
     if (!halted) {
@@ -62,11 +65,14 @@ void z80::clock()
             std::cout << std::dec<< instNo << std::endl;
             pc++;
             cycles = executeOP(opcode);
+            //std::cout<< halted << std::endl;
         }
         cycles--;
+    
     } 
     else { //is halted
         cycles++;
+        
         if (int_flags) {
             halted = false;
         }
@@ -83,7 +89,7 @@ void z80::clock()
     //std::cout << +cycles << std::endl;
     //clock_cycles--;
     
-    
+    return true;
 }
 
 void z80::handleInterrupts(){

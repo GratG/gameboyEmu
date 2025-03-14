@@ -61,7 +61,7 @@ public:
     bool enablingInterrupts;
     bool halted;
     //perform a single clock cycle
-    void clock();
+    bool clock();
     bool complete();
 
     //Pushing 16 bit short onto stack

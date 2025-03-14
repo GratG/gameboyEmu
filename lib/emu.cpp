@@ -2,7 +2,9 @@
 #include <iostream>
 
 
-#include <pthread.h>
+//threading support for linux
+#include <thread>
+#include <unistd.h>
 
 
  
@@ -15,16 +17,40 @@ Emu::~Emu()
 {
 }
 
+void cpu_run(Emu *emu) {
+	//cpu_init()
+	emu->running = true;
+	emu->paused = false;
+	emu->ticks = 0;
 
+	while(emu->running) {
+		if (emu->paused) {
+			//delay(10);
+			continue;
+		}
+
+		if (!emu->bus.cpu.clock()) {
+			   std::cout <<"CPU FAILED" <<std::endl;
+			
+		}
+		if(emu->bus.cpu.getCycles() == 0) {
+			//emu->debug->dbgUpdate();
+			//emu->debug->dbgPrint();
+		}
+		emu->ticks++;
+	}
+
+	
+}
 
 int Emu::emuRun(const std::string& f)
 {
+
 	file = f;
 	ui renderer(this);
 	//renderer.init_window();
 	
-	//std::thread t1(cpu_run, this);
-	//t1.join();
+
 	
 	running = true;
 	paused = false;
@@ -40,21 +66,24 @@ int Emu::emuRun(const std::string& f)
 	//	debug->dbgUpdate();
 	//	debug->dbgPrint();
 	//}
+
+	//pthread_t t1;
+//
+	//if(pthread_create(&t1, NULL, &cpu_run,NULL)){
+	//	std::cout << "FAILED TO START THREAD";
+	//	return 0;
+	//}
+	std::thread t1 = std::thread(cpu_run, this);
+	t1.join();
+	//bus.cpu.clock();
+
+
 	while (running) {
 
 		if (paused) {
 			//delay(10);
 			continue;
 		}
-
-		//std::cout << cycles;
-		bus.cpu.clock();
-		if(bus.cpu.getCycles() == 0) {
-			debug->dbgUpdate();
-			debug->dbgPrint();
-		}
-		//check cpu interrupt
-		//bus.cpu.handleInterrupts();
 
 		//renderer.handle_events();
 		ticks++;
