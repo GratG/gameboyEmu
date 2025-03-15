@@ -2,18 +2,19 @@
 
 #include <SDL3/SDL.h>
 //ttf include?
+
 #include "emu.h"
 
 class Emu;
 
-class ui
+class Ui
 {
 public:
-	ui(Emu* e);
-	~ui();
+	Ui();
+	~Ui();
 
-	const int SCREEN_WIDTH = 1024;
-	const int SCREEN_HEIGHT = 768;
+	const int SCREEN_WIDTH = 100;
+	const int SCREEN_HEIGHT = 100;
 
 	Emu *emu;
 	SDL_Window* sdlWindow;
@@ -23,7 +24,7 @@ public:
 
 
 
-	void init_window();
+	void init_window(Emu *e);
 	void handle_events();
 };
 

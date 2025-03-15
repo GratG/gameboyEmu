@@ -10,7 +10,7 @@
  
 Emu::Emu()
 {
-	
+	ui->init_window(this);
 }
 
 Emu::~Emu()
@@ -47,8 +47,7 @@ int Emu::emuRun(const std::string& f)
 {
 
 	file = f;
-	ui renderer(this);
-	//renderer.init_window();
+
 	
 
 	
@@ -61,34 +60,16 @@ int Emu::emuRun(const std::string& f)
 	bus.insertCartridge(cartridge);
 	debug = new dbg(&bus);
 
-	//for (int i = 0; i < 10000; i++) {
-	//	bus.cpu.clock();
-	//	debug->dbgUpdate();
-	//	debug->dbgPrint();
-	//}
 
-	//pthread_t t1;
-//
-	//if(pthread_create(&t1, NULL, &cpu_run,NULL)){
-	//	std::cout << "FAILED TO START THREAD";
-	//	return 0;
-	//}
 	std::thread t1 = std::thread(cpu_run, this);
 	t1.join();
 	//bus.cpu.clock();
 
 
-	while (running) {
-
-		if (paused) {
-			//delay(10);
-			continue;
-		}
-
-		//renderer.handle_events();
-		ticks++;
-
-	}
+	//while(!die){
+	//	usleep(1000);
+	//	//ui->handle_events();
+	//}
 
 	return 0;
 }

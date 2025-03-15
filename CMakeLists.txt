@@ -7,6 +7,14 @@ project(gameboyEmu VERSION 1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
+
+
+add_subdirectory(SDL EXCLUDE_FROM_ALL)
+
+
 find_package(SDL3 REQUIRED)
 
 file( GLOB_RECURSE SOURCE_FILES lib/*.cpp)
@@ -18,5 +26,5 @@ file(GLOB INCLUDE_FILES include/*.h)
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     include)
 
-
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE SDL3::SDL3)
 
