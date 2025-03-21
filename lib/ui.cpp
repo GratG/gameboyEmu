@@ -8,7 +8,7 @@
 
 Ui::Ui()
 {
-
+	
 }
 
 Ui::~Ui()
@@ -17,10 +17,11 @@ Ui::~Ui()
 
 void Ui::init_window(Emu *e)
 {
+	std::cout << "initializing ui" << std::endl;
 	emu = e;
 	
-	SDL_Init(SDL_INIT_VIDEO)
-	SDL_CreateWindowAndRenderer("test", SCREEN_WIDTH, SCREEN_HEIGHT, 0, &sdlWindow, &sdlRenderer);
+	SDL_Init(SDL_INIT_VIDEO);
+	SDL_CreateWindowAndRenderer("test", 1024, 764, 0, &sdlWindow, &sdlRenderer);
 	
 	
 //
@@ -30,7 +31,7 @@ void Ui::init_window(Emu *e)
 void Ui::handle_events()
 {
 	SDL_Event e;
-	while(SDL_PollEvent(&e) > 0){
+	while(SDL_PollEvent(&e)){
 		if(e.type == SDL_EVENT_QUIT){
 			emu->die = true;
 		}

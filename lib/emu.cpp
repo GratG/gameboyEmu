@@ -10,32 +10,33 @@
  
 Emu::Emu()
 {
-	ui->init_window(this);
+	
 }
 
 Emu::~Emu()
 {
 }
 
-void cpu_run(Emu *emu) {
+void cpuRun(Emu *emu) {
 	//cpu_init()
 	emu->running = true;
 	emu->paused = false;
 	emu->ticks = 0;
 
 	while(emu->running) {
+		
 		if (emu->paused) {
 			//delay(10);
 			continue;
 		}
 
-		if (!emu->bus.cpu.clock()) {
+		if (!emu->bus.cpu->clock()) {
 			   std::cout <<"CPU FAILED" <<std::endl;
 			
 		}
-		if(emu->bus.cpu.getCycles() == 0) {
-			//emu->debug->dbgUpdate();
-			//emu->debug->dbgPrint();
+		if(emu->bus.cpu->getCycles() == 0) {
+			emu->debug->dbgUpdate();
+			emu->debug->dbgPrint();
 		}
 		emu->ticks++;
 	}
@@ -47,10 +48,6 @@ int Emu::emuRun(const std::string& f)
 {
 
 	file = f;
-
-	
-
-	
 	running = true;
 	paused = false;
 	ticks = 0;
@@ -61,15 +58,16 @@ int Emu::emuRun(const std::string& f)
 	debug = new dbg(&bus);
 
 
-	std::thread t1 = std::thread(cpu_run, this);
-	t1.join();
+	std::thread t1 = std::thread(cpuRun, this);
+	//t1.join();
 	//bus.cpu.clock();
 
+	ui->init_window(this);
 
-	//while(!die){
-	//	usleep(1000);
-	//	//ui->handle_events();
-	//}
-
+	while(!die){
+		usleep(1000);
+		ui->handle_events(); 
+	
+	}
 	return 0;
 }

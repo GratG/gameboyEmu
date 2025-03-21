@@ -1,7 +1,9 @@
 #include "timer.h"
 
+#include <iostream>
 Timer::Timer()
 {
+	std::cout << "initializing timer" << std::endl;
 	div = 0xAC00;
 }
 
@@ -34,4 +36,38 @@ void Timer::tick()
 		}
 
 	}
+}
+
+void Timer::timerWrite(uint16_t addr, uint8_t value){
+	switch(addr) {
+        case 0xFF04:
+			div = 0;
+            break;
+
+        case 0xFF05:
+			tima = value;
+            break;
+
+        case 0xFF06:
+			tma = value;
+            break;
+
+        case 0xFF07:
+            tac = value;
+            break;
+    }
+}
+
+uint8_t Timer::timerRead(uint16_t addr) {
+    switch(addr) {
+        case 0xFF04:
+            return div >> 8;
+        case 0xFF05:
+            return tima;
+        case 0xFF06:
+            return tma;
+        case 0xFF07:
+            return tac;
+    }
+	return 0;
 }

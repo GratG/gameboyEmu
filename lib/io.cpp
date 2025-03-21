@@ -4,6 +4,7 @@
 
 io::io()
 {
+	std::cout << "initializing io" << std::endl;
 }
 
 io::~io()

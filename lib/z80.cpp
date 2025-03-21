@@ -5,7 +5,7 @@
 
 z80::z80() {
     
-    
+    std::cout << "initializing cpu" << std::endl;
     registerAF.hi = 0x01;
     registerAF.lo = 0xB0;
     registerBC.hi = 0x00;

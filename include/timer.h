@@ -2,7 +2,6 @@
 
 #include <cstdint>
 
-#include "emu.h"
 
 
 class Timer
@@ -10,10 +9,11 @@ class Timer
 public:
 	Timer();
 
-	Bus* bus;
+	
 
 	void tick();
-
+	void timerWrite(uint16_t addr, uint8_t value);
+	uint8_t timerRead(uint16_t addr);
 	uint16_t div; //divider register
 	uint8_t tima; //timer counter
 	uint8_t tma; //timer modulo

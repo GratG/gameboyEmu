@@ -7,8 +7,10 @@
 #include "cartridge.h"
 #include "ram.h"
 #include "io.h"
+#include "timer.h"
 
 
+class z80;
 
 class Bus
 {
@@ -25,11 +27,12 @@ public:
     void insertCartridge(const std::shared_ptr<Cartridge>& cartridge);
 
     //Devices on bus
-    z80 cpu;
+    z80 *cpu = nullptr;
     //cartridge
     std::shared_ptr<Cartridge> cart;
     //Wram and Hram
     Ram *memory = nullptr;
     io *inout = nullptr;
+    Timer *timer = nullptr;
     
 };

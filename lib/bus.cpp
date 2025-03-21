@@ -2,10 +2,12 @@
 
 
 Bus::Bus() {
-    cpu.ConnectBus(this);
+    cpu = new z80();
+    cpu->ConnectBus(this);
     memory = new Ram();
     inout = new io();
     //std::cout << cpu.C;
+    timer = new Timer();
 }
 
 Bus::~Bus() {
@@ -111,7 +113,7 @@ uint8_t Bus::busRead(uint16_t addr, bool bReadOnly) {
     else if (addr == 0xFFFF) {
         //CPU enable interrupt register
         //std::cout << "Invalid read/write to 0x" << std::hex << addr;
-        return cpu.ie_register;
+        return cpu->ie_register;
     }
 
     return memory->read_hRam(addr);

@@ -8,7 +8,9 @@
 #include "cartridge.h"
 #include "dbg.h"
 
+class bus;
 class Ui;
+class dbg;
 class Emu{
 
 public:
