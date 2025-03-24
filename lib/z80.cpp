@@ -138,7 +138,9 @@ void z80::setIntFlags(uint8_t value){
     int_flags = value;
 }
 
-
+void z80::requestIntr(int t){
+    int_flags |= t;
+}
 
 template<typename typeData>
 typeData z80::BitGetVal(typeData inData, int pos) {

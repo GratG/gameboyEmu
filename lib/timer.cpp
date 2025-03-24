@@ -1,10 +1,14 @@
 #include "timer.h"
 
 #include <iostream>
-Timer::Timer()
+Timer::Timer(z80 *c)
 {
 	std::cout << "initializing timer" << std::endl;
+	cpu = c;
 	div = 0xAC00;
+	tima = 0x00;
+	tma = 0x00;
+	tac = 0x00;
 }
 
 void Timer::tick()
@@ -32,7 +36,7 @@ void Timer::tick()
 		tima++;
 		if (tima == 0xFF) {
 			tima = tma;
-			//request interrupt
+			cpu->requestIntr(2);
 		}
 
 	}
@@ -43,19 +47,17 @@ void Timer::timerWrite(uint16_t addr, uint8_t value){
         case 0xFF04:
 			div = 0;
             break;
-
         case 0xFF05:
 			tima = value;
             break;
-
         case 0xFF06:
 			tma = value;
             break;
-
         case 0xFF07:
             tac = value;
             break;
     }
+	
 }
 
 uint8_t Timer::timerRead(uint16_t addr) {

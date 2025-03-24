@@ -11,7 +11,8 @@
 
 
 class z80;
-
+class io;
+class Timer;
 class Bus
 {
 public:

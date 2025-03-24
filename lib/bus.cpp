@@ -3,11 +3,12 @@
 
 Bus::Bus() {
     cpu = new z80();
-    cpu->ConnectBus(this);
+   
     memory = new Ram();
-    inout = new io();
-    //std::cout << cpu.C;
-    timer = new Timer();
+    timer = new Timer(cpu);
+    inout = new io(timer);
+    cpu->ConnectBus(this);
+    
 }
 
 Bus::~Bus() {
@@ -42,7 +43,8 @@ void Bus::busWrite(uint16_t addr, uint8_t data) {
         std::cout << std::hex << "unsupported write to " << addr << std::endl;
     }
     else if (addr < 0xFF80) {
-        //std::cout << "writing to IO";
+        //std::cout << std::hex << "writing to IO " << addr << std::endl;
+        //std::cout << "writing value " << data << std::endl;
         inout->writeIO(addr, data);
     }
     
@@ -106,7 +108,7 @@ uint8_t Bus::busRead(uint16_t addr, bool bReadOnly) {
     else if (addr < 0xFF80) {
         //IO registers
         //std::cout << "Invalid read/write to 0x" << std::hex << addr;
-        //std::cout << "reading IO";
+        std::cout << std::hex << "reading IO " << addr  << std::endl;
         return inout->readIO(addr);
     }
  

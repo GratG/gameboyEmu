@@ -57,9 +57,11 @@ public:
     void handleInterrupts();//goes through interrupt checks
     bool intCheck(uint16_t addr, interruptType it);
     void intHandle(uint16_t addr);
+    void requestIntr(int t);
     bool interruptsEnabled;
     bool enablingInterrupts;
     bool halted;
+
     //perform a single clock cycle
     bool clock();
     bool complete();

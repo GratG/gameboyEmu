@@ -2,8 +2,9 @@
 #include <iostream>
 
 
-io::io()
+io::io(Timer *t)
 {
+	timer = t;
 	std::cout << "initializing io" << std::endl;
 }
 
@@ -22,6 +23,23 @@ void io::writeIO(uint16_t addr, uint8_t value)
 		serialData[1] = value;
 		return;
 	}
+	if(addr == 0xFF04){
+		timer->timerWrite(addr, value);
+		return;
+	}
+	if(addr == 0xFF05){
+		timer->timerWrite(addr, value);
+		return;
+	}
+	if(addr == 0xFF06){
+		timer->timerWrite(addr, value);
+		return;
+	}
+	if(addr == 0xFF07){
+		timer->timerWrite(addr, value);
+		return;
+	}
+
 
 }
 
@@ -33,6 +51,18 @@ uint8_t io::readIO(uint16_t addr)
 	}
 	if (addr == 0xFF02) {
 		return serialData[1];
+	}
+	if(addr == 0xFF04){
+		return timer->timerRead(addr);
+	}
+	if(addr == 0xFF05){
+		return timer->timerRead(addr);
+	}
+	if(addr == 0xFF06){
+		return timer->timerRead(addr);
+	}
+	if(addr == 0xFF07){
+		return timer->timerRead(addr);
 	}
 	if (addr == 0xFF44) {
 		return 0x0090;

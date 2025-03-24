@@ -1,15 +1,16 @@
 #pragma once
 #include <cstdint>
+#include "timer.h"
 
-
+class Timer;
 class io
 {
 public: 
-	io();
+	io(Timer *t);
 	~io();
 	
 
-	//Bus *bus;
+	Timer *timer;
 	void writeIO(uint16_t addr, uint8_t value);
 	uint8_t readIO(uint16_t addr);
 private:
